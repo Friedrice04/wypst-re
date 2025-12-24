@@ -39,7 +39,30 @@ impl ContentVisitor for ContentConverter<'_> {
         let _text = elem.text();
         let _limits = elem.limits(self.styles);
 
-        let name = format!("\\{}", _text.plain_text()).to_string();
+        let raw = _text.plain_text();
+        match katex::operators::lookup(raw.as_str()) {
+            Some(katex::operators::OpMap::Char(ch)) => {
+                return Node::Node(katex::Symbol::get(katex::Mode::Math, ch).create_node());
+            }
+            Some(katex::operators::OpMap::Cmd(cmd)) => {
+                let node = katex::OpBuilder::default()
+                    .limits(_limits)
+                    .parent_is_sup_sub(false)
+                    .symbol(true)
+                    .name(Some(cmd.to_string()))
+                    .build().unwrap().into_node();
+                return Node::Node(node);
+            }
+            None => {
+                let node = katex::OpBuilder::default()
+                    .limits(_limits)
+                    .parent_is_sup_sub(false)
+                    .symbol(true)
+                    .name(Some(format!("\\{}", raw)))
+                    .build().unwrap().into_node();
+                return Node::Node(node);
+            }
+        }
 
         let node = katex::OpBuilder::default()
             .limits(_limits)
